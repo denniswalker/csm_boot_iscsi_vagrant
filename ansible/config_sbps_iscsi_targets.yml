@@ -1,0 +1,53 @@
+#!/usr/bin/env ansible-playbook
+#
+# MIT License
+#
+# (C) Copyright 2024 Hewlett Packard Enterprise Development LP
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+# OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+#
+
+#
+# Personalize/ configure identified worker nodes for iSCSI SBPS (Scalable Boot
+# Content Projection Service):
+#   - provision these worker nodes as iSCSI targets with LIO services
+#   - install/ enable SBPS Marshal Agent(systemd service) on these iSCSI targets
+#   - create DNS SRV and A records to be used to discover iSCSI targets during compute nodes booting
+#   - mount s3 bucket (boot-image) images using new dedicated s3 read only policy
+#   - apply k8s label to the personalized nodes for other consumers of iSCSI SBPS
+# 
+# By default all the worker nodes (Management_Worker) will be configured OR 
+# admin/ user can chose to configure only subset of worker nodes defined in 
+# CFS config/ HSM group during personalization.
+#
+- hosts: Management_Worker:!cfs_image
+  gather_facts: no
+  any_errors_fatal: true
+  remote_user: root
+  roles:
+    # Apply k8s label on all the intended worker nodes
+    - role: csm.sbps.apply_label
+    # Enable spire for SBPS Marshal Agent (systemd service)
+    - role: csm.sbps.enable_spire
+    # Install and enable SBPS Marshal Agent
+    - role: csm.sbps.install_enable_marshal
+    # Provision iSCSI targets/ LIO services
+    - role: csm.sbps.lio_config
+    # Configure SBPS DNS "SRV" and "A" records
+    - role: csm.sbps.dns_srv_records
