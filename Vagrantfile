@@ -1,12 +1,8 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
-
-REQUIRED_PLUGINS = %w(vagrant-libvirt vagrant-env)
-puts "Checking that the required plugins are installed. Exit 1 if not."
-exit 1 unless REQUIRED_PLUGINS.all? { |plugin| Vagrant.has_plugin? plugin }
 Vagrant.configure('2') do |config|
   config.vm.define :ncn do |ncn|
-    ncn.vm.box = 'opensuse/Leap-15.3.x86_64'
+ncn.vm.box = 'opensuse/Leap-15.3.x86_64'
     ncn.vm.box_version = '15.3.10.25'
     ncn.vm.network 'private_network', ip: '10.252.0.10', libvirt__network_name: 'nmn', libvirt__dhcp_enabled: false
     ncn.vm.synced_folder '.', '/vagrant', type: 'nfs', nfs_udp: false, nfs_version: 4
@@ -18,24 +14,21 @@ Vagrant.configure('2') do |config|
       ncnw.memory = 8192
     end
 
-    # Populate artifactory creds so zypper can reach algol. Not necessary.
-    ncn.vm.provision 'shell', inline: <<~EOS
-      if [[ ! $(grep "ARTIFACTORY_USER" /etc/environment) || ! $(grep "ARTIFACTORY_TOKEN" /etc/environment) ]]; then
-        echo "ARTIFACTORY_USER=#{ENV['ARTIFACTORY_USER']}" | sudo tee -a /etc/environment >/dev/null
-        echo "ARTIFACTORY_TOKEN=#{ENV['ARTIFACTORY_TOKEN']}" | sudo tee -a /etc/environment >/dev/null
-      fi
-    EOS
-    ncn.vm.provision 'shell', path: 'configure_vm.sh'
-    ncn.vm.provision :ansible_local do |ansible|
-      # ansible.limit = 'all'
-      ansible.playbook = '/vagrant/ansible/config_sbps_iscsi_targets.yml'
-      ansible.inventory_path = '/vagrant/ansible/inventory.yml'
-    end
+    # Provisioned with external up.sh script
+    # ncn.vm.provision 'shell', path: 'scripts/install_packages.sh'
+    # ncn.vm.provision 'shell', path: 'scripts/install_python3.sh'
+    # ncn.vm.provision 'shell', path: 'scripts/install_k3s.sh'
+    # ncn.vm.provision 'shell', path: 'scripts/install_minio.sh'
+    # ncn.vm.provision 'shell', path: 'scripts/install_powerdns.sh'
+    # ncn.vm.provision 'shell', path: 'scripts/install_ims.sh'
+    # ncn.vm.provision 'shell', path: 'scripts/install_spire.sh'
+    # ncn.vm.provision 'shell', path: 'scripts/install_sbps.sh'
+
   end
 
   # Define the NID
   config.vm.define :compute, autostart: false do |compute|
-    compute.vm.hostname = "nid001"
+    compute.vm.hostname = "nid0001"
     compute.vm.network 'private_network', libvirt__network_name: 'nmn'
 
      # Configure VM

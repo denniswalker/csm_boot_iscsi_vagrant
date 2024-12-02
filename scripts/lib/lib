@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+
+create_systemd_service() {
+  local service_name="$1"
+  shift
+  local command="$@"
+
+  if [ -z "$service_name" ] || [ -z "$command" ]; then
+    echo "Usage: create_systemd_service <service_name> <command>"
+    return 1
+  fi
+
+  local unit_file="/etc/systemd/system/${service_name}.service"
+
+  sudo bash -c "cat > $unit_file" <<EOL
+[Unit]
+Description=Systemd service for $service_name
+After=network.target
+
+[Service]
+ExecStart=$command
+Restart=always
+User=$(whoami)
+
+[Install]
+WantedBy=multi-user.target
+EOL
+
+  # Reload systemd configurations and enable the new service
+  sudo systemctl daemon-reload
+  sudo systemctl enable "$service_name"
+  sudo systemctl start "$service_name"
+  sleep 2
+}
+
+wait_until_service_active() {
+  local service_name="$1"
+
+  if [ -z "$service_name" ]; then
+    echo "Usage: wait_until_service_active <service_name>"
+    return 1
+  fi
+
+  while ! systemctl is-active --quiet "$service_name"; do
+    echo "Waiting for service $service_name to become active..."
+    sleep 2
+  done
+  echo "Service $service_name is now active."
+}
