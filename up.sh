@@ -10,5 +10,5 @@ STAGES=(packages python3 k3s powerdns minio ims spire sbps)
 
 for stage in ${STAGES[@]:4}; do
   vagrant ssh ncn -c "sudo /vagrant/scripts/install_${stage}.sh"
-  vagrant snapshot save ncn "$stage"
+  vagrant snapshot save ncn "$stage" --force
 done

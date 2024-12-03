@@ -24,5 +24,12 @@ curl https://dl.min.io/client/mc/release/linux-amd64/mc \
 chmod +x "$HOME"/minio-binaries/mc
 mv "$HOME"/minio-binaries/mc /usr/local/bin/mc
 
+echo "Waiting for Minio at localhost:9000 to become active..."
+while ! curl -s http://localhost:9000 >/dev/null; do
+  sleep 2
+  echo -n "."
+done
+echo "localhost:9000 is now active!"
+
 mc alias set local http://127.0.0.1:9000 minioroot miniopass
 mc admin accesskey create local/ --access-key "$MINIO_ACCESS_KEY" --secret-key "$MINIO_SECRET_KEY" --name testkey

@@ -26,6 +26,7 @@
 set -exuo pipefail
 
 IQN_PREFIX="iqn.2023-06.csm.iscsi:"
+HOST="$(hostname -s)"
 
 # Before anything else, check to see if iSCSI/LIO is already
 # configured.  In that case, do nothing as we don't want to
