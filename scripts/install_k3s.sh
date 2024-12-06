@@ -21,7 +21,13 @@ chmod 600 /home/vagrant/.kube/config
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3)"
 
 # Unique to k3s and CSM
-sleep 5
-GATEWAY_IP="$(kubectl -n kube-system get svc traefik -o json | jq -r '.status.loadBalancer.ingress[0].ip')"
+echo "Waiting for Traefik to be ready..."
+while [[ -z $(kubectl -n kube-system get svc traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}') ]]; do
+  echo -n "."
+  sleep 5
+done
+GATEWAY_IP="$(kubectl -n kube-system get svc traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
 echo "${GATEWAY_IP} api-gw-service-nmn.local" >>/etc/hosts
 echo "export GATEWAY_IP=${GATEWAY_IP}" >>/etc/environment
+sudo sysctl -w net.ipv4.ip_forward=1
+echo "net.ipv4.ip_forward = 1" | sudo tee -a /etc/sysctl.conf

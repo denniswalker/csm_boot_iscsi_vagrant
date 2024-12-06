@@ -2,8 +2,8 @@
 # vi: set ft=ruby :
 Vagrant.configure('2') do |config|
   config.vm.define :ncn do |ncn|
-ncn.vm.box = 'opensuse/Leap-15.3.x86_64'
-    ncn.vm.box_version = '15.3.10.25'
+    ncn.vm.box = 'opensuse/Leap-15.3.x86_64'
+ncn.vm.box_version = '15.3.10.25'
     ncn.vm.network 'private_network', ip: '10.252.0.10', libvirt__network_name: 'nmn', libvirt__dhcp_enabled: false
     ncn.vm.synced_folder '.', '/vagrant', type: 'nfs', nfs_udp: false, nfs_version: 4
     ncn.vm.hostname = 'k3d-csm-server-0'
@@ -13,21 +13,11 @@ ncn.vm.box = 'opensuse/Leap-15.3.x86_64'
       ncnw.cpus = 4
       ncnw.memory = 8192
     end
-
-    # Provisioned with external up.sh script
-    # ncn.vm.provision 'shell', path: 'scripts/install_packages.sh'
-    # ncn.vm.provision 'shell', path: 'scripts/install_python3.sh'
-    # ncn.vm.provision 'shell', path: 'scripts/install_k3s.sh'
-    # ncn.vm.provision 'shell', path: 'scripts/install_minio.sh'
-    # ncn.vm.provision 'shell', path: 'scripts/install_powerdns.sh'
-    # ncn.vm.provision 'shell', path: 'scripts/install_ims.sh'
-    # ncn.vm.provision 'shell', path: 'scripts/install_spire.sh'
-    # ncn.vm.provision 'shell', path: 'scripts/install_sbps.sh'
-
   end
 
   # Define the NID
   config.vm.define :compute, autostart: false do |compute|
+    #compute.vm.box = 'opensuse/Leap-15.6.x86_64'
     compute.vm.hostname = "nid0001"
     compute.vm.network 'private_network', libvirt__network_name: 'nmn'
 

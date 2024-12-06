@@ -47,35 +47,78 @@ echo "export POWERDNS_API_KEY=${POWERDNS_API}" | sudo tee -a /etc/environment >/
 POWERDNS_SVC="$(kubectl get svc -l app=powerdns-helm -A -o json | jq -r ".items[0].metadata.name")"
 echo "export POWERDNS_SVC=${POWERDNS_SVC}" | sudo tee -a /etc/environment >/dev/null
 create_systemd_service powerdns-forwarder kubectl port-forward --address=0.0.0.0 service/"$POWERDNS_SVC" 53:53
-create_systemd_service powerdns-api-forwarder kubectl port-forward --address=127.0.0.1 service/"$POWERDNS_SVC" 8081:8081
-echo "NETCONFIG_DNS_STATIC_SERVERS=127.0.0.1" | sudo tee -a /etc/sysconfig/network/config >/dev/null
+create_systemd_service powerdns-api-forwarder kubectl port-forward --address=0.0.0.0 service/"$POWERDNS_SVC" 8088:8081
+
+echo "NETCONFIG_DNS_STATIC_SERVERS='10.252.0.10 172.18.0.2 192.168.121.1'" | sudo tee -a /etc/sysconfig/network/config >/dev/null
+sudo netconfig update -f
 source /etc/environment
 
 HOSTNAME_NMN="$(hostname).nmn"
-cat <<EOF | sudo tee /tmp/powerdns_records.json >/dev/null
-{
-  "rrsets": [
-    {
-      "name": "${HOSTNAME_NMN}.",
-      "type": "A",
-      "ttl": 3600,
-      "changetype": "REPLACE",
-      "records": [
-        {
-          "content": "10.252.0.10",
-          "disabled": false
-        }
-      ]
-    }
-  ]
-}
+
+kubectl exec -it svc/powerdns-powerdns-helm -- pdnsutil create-zone "$HOSTNAME_NMN" "ns1.${HOSTNAME_NMN}"
+kubectl exec -it svc/powerdns-powerdns-helm -- pdnsutil add-record "$HOSTNAME_NMN" ns1 A 10.252.0.10
+kubectl exec -it svc/powerdns-powerdns-helm -- pdnsutil add-record "$HOSTNAME_NMN" . A 10.252.0.10
+
+# Istio forwarder
+# cat <<EOF | kubectl apply -f -
+# apiVersion: networking.istio.io/v1beta1
+# kind: ServiceEntry
+# metadata:
+#   name: powerdns-tcp-entry
+#   namespace: default
+# spec:
+#   hosts:
+#     - powerdns-powerdns-helm.default.svc.cluster.local
+#   addresses:
+#     - 0.0.0.0/0
+#   ports:
+#     - number: 53
+#       name: tcp-dns
+#       protocol: TCP
+#   location: MESH_INTERNAL
+# EOF
+
+cat <<EOF | kubectl apply -f -
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: dns-ingressgateway
+  namespace: default
+spec:
+  selector:
+    istio: istio-system/ingressgateway
+  servers:
+    - port:
+        number: 53
+        name: tcp-dns
+        protocol: TCP
+      hosts:
+        - "*"
+    - port:
+        number: 53
+        name: udp-dns
+        protocol: UDP
+      hosts:
+        - "*"
 EOF
 
-kubectl exec -it powerdns-powerdns-helm-889745496-td8kz -- pdnsutil create-zone "$HOSTNAME_NMN"
-curl -X PATCH \
-  -H "X-API-Key: ${POWERDNS_API_KEY}" \
-  -H 'Content-Type: application/json' \
-  -d @/tmp/powerdns_records.json \
-  http://127.0.0.1:8081/api/v1/servers/localhost/zones/"$HOSTNAME_NMN"
-
-sudo netconfig update -f
+cat <<EOF | kubectl apply -f -
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: powerdns-tcp-virtualservice
+  namespace: default
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - default/dns-ingressgateway
+  tcp:
+    - match:
+        - port: 53
+      route:
+        - destination:
+            host: powerdns-powerdns-helm.default.svc.cluster.local
+            port:
+              number: 53
+EOF
