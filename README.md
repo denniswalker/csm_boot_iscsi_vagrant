@@ -34,6 +34,8 @@ system:
    "/vagrant". It requires an NFS server to be installed and started. Consult
    your OS documentation or package manager.
 
+1. About 250GB of disk space
+
 ## Getting Started
 
 Run `bash ./up.sh`

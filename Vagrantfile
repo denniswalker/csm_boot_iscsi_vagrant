@@ -28,7 +28,7 @@ Vagrant.configure('2') do |config|
       libvirt.cpus = '2'
       # Create a disk
       libvirt.storage :file,
-        size: '50G',
+        size: '60G',
         type: 'qcow2',
         bus: 'sata',
         device: 'sda'
