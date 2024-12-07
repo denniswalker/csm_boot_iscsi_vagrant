@@ -29,6 +29,7 @@ mc mb local/recipes
 mc mb local/ims
 
 # Build the IMS image
+sed -i 's|alpine:3.15|docker.io/library/alpine:3.15|' Dockerfile
 buildah bud -t cray-ims-service:dev -f Dockerfile .
 # docker build -t cray-ims-service:dev -f Dockerfile .
 cd "$OLDPWD"
