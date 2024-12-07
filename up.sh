@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -exuo pipefail
-
-#          0       1     2     3        4    5    6    7    8    9    10
-STAGES=(packages python3 k3s istio powerdns kea minio ims spire tftp sbps)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
+source "$SCRIPT_DIR"/scripts/lib/lib # Provides STAGES array
 
 # Accepts an optional argument to start at a specific stage
 START_STAGE=${1:-packages}
@@ -15,7 +14,7 @@ for i in "${!STAGES[@]}"; do
   fi
 done
 
-if ! vagrant snapshot list ncn 2>/dev/null | grep base; then
+if ! vagrant snapshot list ncn | grep base; then
   vagrant up ncn --no-provision
   vagrant snapshot save ncn base
 fi

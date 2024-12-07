@@ -7,7 +7,6 @@ sudo zypper -n in \
   tmux \
   vim \
   htop \
-  docker \
   git \
   bind-utils \
   python39 \
@@ -18,4 +17,10 @@ sudo zypper -n in \
   targetcli-fb \
   dhcp-server \
   tftp \
-  ansible
+  ansible \
+  containerd \
+  cri-tools \
+  buildah \
+  ethtool \
+  conntrack-tools \
+  apparmor-parser

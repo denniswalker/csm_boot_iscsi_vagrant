@@ -1,4 +1,4 @@
 # Inventory file example
 [Management_Worker]
-k3d-csm-server-0 ansible_connection=local
+ncn-m001 ansible_connection=local
 

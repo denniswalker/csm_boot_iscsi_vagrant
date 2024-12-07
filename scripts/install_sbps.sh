@@ -6,7 +6,7 @@ echo "${MINIO_ACCESS_KEY}:${MINIO_SECRET_KEY}" >/root/.ims.s3fs
 
 # Install sbps
 sudo zypper -n --no-gpg-checks in /vagrant/artifacts/sbps-marshal-0.0.11-1.noarch.rpm
-kubectl label node k3d-csm-server-0 iscsi=sbps
+kubectl label node "$(hostname -s)" iscsi=sbps
 
 # Run spbs ansible
 cd /vagrant

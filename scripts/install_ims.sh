@@ -4,6 +4,9 @@ set -exuo pipefail
 # Mimic CPS
 mkdir -p /var/lib/cps-local/boot-images
 
+# Install buildah
+zypper install -y buildah
+
 # Install IMS
 git clone https://github.com/Cray-HPE/ims
 cd ./ims
@@ -25,8 +28,9 @@ mc mb local/boot-images
 mc mb local/recipes
 mc mb local/ims
 
-# Build the IMS Docker image
-docker build -t cray-ims-service:dev -f Dockerfile .
+# Build the IMS image
+buildah bud -t cray-ims-service:dev -f Dockerfile .
+# docker build -t cray-ims-service:dev -f Dockerfile .
 cd "$OLDPWD"
 source /etc/environment
 echo "Starting IMS..."

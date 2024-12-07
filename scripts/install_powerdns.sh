@@ -8,11 +8,12 @@ if [[ -d /root/powerdns-helm ]]; then
   rm -rf /root/powerdns-helm
 fi
 cd /root
+
+# Download and install powerdns
 git clone https://github.com/cdwv/powerdns-helm
 cd powerdns-helm
 helm install powerdns .
 
-# Configure PowerDNS as the DNS server
 # Wait for powerdns-helm deployment to be ready
 timeout=180 # Total timeout in seconds
 interval=5  # Interval between checks in seconds
@@ -38,55 +39,49 @@ while true; do
   sleep "$interval"
   elapsed=$((elapsed + interval))
 done
-
 set -x
+
+# Set up environment variables
 POWERDNS_ENDPOINT=$(kubectl get svc -l app=powerdns-helm -A -o json | jq -r ".items[0].spec.clusterIP")
-echo "export POWERDNS_ENDPOINT=${POWERDNS_ENDPOINT}" | sudo tee -a /etc/environment >/dev/null
+echo "export POWERDNS_ENDPOINT=${POWERDNS_ENDPOINT}" |
+  sudo tee -a /etc/environment >/dev/null
 POWERDNS_API="$(kubectl get secret powerdns-api-key -o json | jq -r '.data.POWERDNS_API_KEY' | base64 -d)"
-echo "export POWERDNS_API_KEY=${POWERDNS_API}" | sudo tee -a /etc/environment >/dev/null
+echo "export POWERDNS_API_KEY=${POWERDNS_API}" |
+  sudo tee -a /etc/environment >/dev/null
 POWERDNS_SVC="$(kubectl get svc -l app=powerdns-helm -A -o json | jq -r ".items[0].metadata.name")"
-echo "export POWERDNS_SVC=${POWERDNS_SVC}" | sudo tee -a /etc/environment >/dev/null
-create_systemd_service powerdns-forwarder kubectl port-forward --address=0.0.0.0 service/"$POWERDNS_SVC" 53:53
-create_systemd_service powerdns-api-forwarder kubectl port-forward --address=0.0.0.0 service/"$POWERDNS_SVC" 8088:8081
+echo "export POWERDNS_SVC=${POWERDNS_SVC}" |
+  sudo tee -a /etc/environment >/dev/null
 
-echo "NETCONFIG_DNS_STATIC_SERVERS='10.252.0.10 172.18.0.2 192.168.121.1'" | sudo tee -a /etc/sysconfig/network/config >/dev/null
-sudo netconfig update -f
+# Create a port-forward for PowerDNS
+# create_systemd_service powerdns-forwarder \
+#   kubectl port-forward --address=0.0.0.0 service/"$POWERDNS_SVC" 53:53
+# create_systemd_service powerdns-api-forwarder \
+#   kubectl port-forward --address=0.0.0.0 service/"$POWERDNS_SVC" 8088:8081
+
+# Create zone and records
 source /etc/environment
-
 HOSTNAME_NMN="$(hostname).nmn"
 
-kubectl exec -it svc/powerdns-powerdns-helm -- pdnsutil create-zone "$HOSTNAME_NMN" "ns1.${HOSTNAME_NMN}"
-kubectl exec -it svc/powerdns-powerdns-helm -- pdnsutil add-record "$HOSTNAME_NMN" ns1 A 10.252.0.10
-kubectl exec -it svc/powerdns-powerdns-helm -- pdnsutil add-record "$HOSTNAME_NMN" . A 10.252.0.10
+function do_pdns() {
+  local action=$1
+  local zone=$2
+  local args=("${@:3}")
+  kubectl exec -it svc/powerdns-powerdns-helm -- pdnsutil "$action" "$zone" "${args[@]}"
+}
 
-# Istio forwarder
-# cat <<EOF | kubectl apply -f -
-# apiVersion: networking.istio.io/v1beta1
-# kind: ServiceEntry
-# metadata:
-#   name: powerdns-tcp-entry
-#   namespace: default
-# spec:
-#   hosts:
-#     - powerdns-powerdns-helm.default.svc.cluster.local
-#   addresses:
-#     - 0.0.0.0/0
-#   ports:
-#     - number: 53
-#       name: tcp-dns
-#       protocol: TCP
-#   location: MESH_INTERNAL
-# EOF
+do_pdns create-zone "$HOSTNAME_NMN" "ns1.${HOSTNAME_NMN}"
+do_pdns add-record "$HOSTNAME_NMN" ns1 A 10.252.0.10
+do_pdns add-record "$HOSTNAME_NMN" . A 10.252.0.10
 
 cat <<EOF | kubectl apply -f -
 apiVersion: networking.istio.io/v1beta1
 kind: Gateway
 metadata:
-  name: dns-ingressgateway
+  name: powerdns-gateway
   namespace: default
 spec:
   selector:
-    istio: istio-system/ingressgateway
+    istio: ingressgateway # Use Istio's ingress gateway
   servers:
     - port:
         number: 53
@@ -106,13 +101,13 @@ cat <<EOF | kubectl apply -f -
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
-  name: powerdns-tcp-virtualservice
+  name: powerdns-virtualservice
   namespace: default
 spec:
   hosts:
     - "*"
   gateways:
-    - default/dns-ingressgateway
+    - powerdns-gateway
   tcp:
     - match:
         - port: 53
@@ -121,4 +116,10 @@ spec:
             host: powerdns-powerdns-helm.default.svc.cluster.local
             port:
               number: 53
+
 EOF
+
+# Update the DNS settings
+echo "NETCONFIG_DNS_STATIC_SERVERS='172.18.0.2 192.168.121.1'" |
+  sudo tee -a /etc/sysconfig/network/config >/dev/null
+sudo netconfig update -f

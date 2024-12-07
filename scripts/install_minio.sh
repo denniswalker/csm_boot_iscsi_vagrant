@@ -2,13 +2,17 @@
 set -exuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 source "$SCRIPT_DIR"/lib/lib
-source /vagrant/.env
 
 # Install Minio
 mkdir -p ~/minio/data
 
-echo "export MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}" | sudo tee -a /etc/environment >/dev/null
-echo "export MINIO_SECRET_KEY=${MINIO_SECRET_KEY}" | sudo tee -a /etc/environment >/dev/null
+MINIO_ACCESS_KEY="minioaccess"
+MINIO_SECRET_KEY="miniosecret"
+
+echo "export MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}" |
+  sudo tee -a /etc/environment >/dev/null
+echo "export MINIO_SECRET_KEY=${MINIO_SECRET_KEY}" |
+  sudo tee -a /etc/environment >/dev/null
 
 create_systemd_service minio podman run \
   -p 9000:9000 \
@@ -32,4 +36,5 @@ done
 echo "localhost:9000 is now active!"
 
 mc alias set local http://127.0.0.1:9000 minioroot miniopass
-mc admin accesskey create local/ --access-key "$MINIO_ACCESS_KEY" --secret-key "$MINIO_SECRET_KEY" --name testkey
+mc admin accesskey create \
+  local/ --access-key "$MINIO_ACCESS_KEY" --secret-key "$MINIO_SECRET_KEY" --name testkey
