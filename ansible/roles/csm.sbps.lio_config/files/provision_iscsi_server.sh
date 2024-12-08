@@ -26,7 +26,10 @@
 set -exuo pipefail
 
 IQN_PREFIX="iqn.2023-06.csm.iscsi:"
+
+# Modifications by dw
 HOST="$(hostname -s)"
+source /etc/environment
 
 # Before anything else, check to see if iSCSI/LIO is already
 # configured.  In that case, do nothing as we don't want to
@@ -76,7 +79,7 @@ if [[ -n $HSN_IP ]]; then
   HSN_IP="$(echo "$HSN_IP" | awk '{print $2;}' | awk -F/ '{print $1;}')"
 fi
 
-NMN_IP="$(host -4 "${HOST}.nmn" | awk '{print $NF;}')"
+NMN_IP="$(host -4 "${HOST}.nmn" "${PDNS_SVC_IP}" | awk '{print $NF;}')"}
 
 systemctl stop target
 systemctl enable --now target

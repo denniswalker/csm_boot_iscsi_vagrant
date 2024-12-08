@@ -12,7 +12,7 @@ cd /root
 # Download and install powerdns
 git clone https://github.com/cdwv/powerdns-helm
 cd powerdns-helm
-helm install powerdns .
+helm install powerdns . --set service.type=LoadBalancer
 
 # Wait for powerdns-helm deployment to be ready
 timeout=180 # Total timeout in seconds
@@ -73,53 +73,56 @@ do_pdns create-zone "$HOSTNAME_NMN" "ns1.${HOSTNAME_NMN}"
 do_pdns add-record "$HOSTNAME_NMN" ns1 A 10.252.0.10
 do_pdns add-record "$HOSTNAME_NMN" . A 10.252.0.10
 
-cat <<EOF | kubectl apply -f -
-apiVersion: networking.istio.io/v1beta1
-kind: Gateway
-metadata:
-  name: powerdns-gateway
-  namespace: default
-spec:
-  selector:
-    istio: ingressgateway # Use Istio's ingress gateway
-  servers:
-    - port:
-        number: 53
-        name: tcp-dns
-        protocol: TCP
-      hosts:
-        - "*"
-    - port:
-        number: 53
-        name: udp-dns
-        protocol: UDP
-      hosts:
-        - "*"
-EOF
-
-cat <<EOF | kubectl apply -f -
-apiVersion: networking.istio.io/v1beta1
-kind: VirtualService
-metadata:
-  name: powerdns-virtualservice
-  namespace: default
-spec:
-  hosts:
-    - "*"
-  gateways:
-    - powerdns-gateway
-  tcp:
-    - match:
-        - port: 53
-      route:
-        - destination:
-            host: powerdns-powerdns-helm.default.svc.cluster.local
-            port:
-              number: 53
-
-EOF
+# cat <<EOF | kubectl apply -f -
+# apiVersion: networking.istio.io/v1beta1
+# kind: Gateway
+# metadata:
+#   name: powerdns-gateway
+#   namespace: default
+# spec:
+#   selector:
+#     istio: ingressgateway # Use Istio's ingress gateway
+#   servers:
+#     - port:
+#         number: 53
+#         name: tcp-dns
+#         protocol: TCP
+#       hosts:
+#         - "*"
+#     - port:
+#         number: 53
+#         name: udp-dns
+#         protocol: UDP
+#       hosts:
+#         - "*"
+# EOF
+#
+# cat <<EOF | kubectl apply -f -
+# apiVersion: networking.istio.io/v1beta1
+# kind: VirtualService
+# metadata:
+#   name: powerdns-virtualservice
+#   namespace: default
+# spec:
+#   hosts:
+#     - "*"
+#   gateways:
+#     - powerdns-gateway
+#   tcp:
+#     - match:
+#         - port: 53
+#       route:
+#         - destination:
+#             host: powerdns-powerdns-helm.default.svc.cluster.local
+#             port:
+#               number: 53
+#
+# EOF
 
 # Update the DNS settings
-echo "NETCONFIG_DNS_STATIC_SERVERS='172.18.0.2 192.168.121.1'" |
+PDNS_SVC_IP="$(kubectl get svc powerdns-powerdns-helm -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
+echo "export PDNS_SVC_IP=${PDNS_SVC_IP}" |
+  sudo tee -a /etc/environment >/dev/null
+echo "NETCONFIG_DNS_STATIC_SERVERS=\"${PDNS_SVC_IP} 192.168.121.1\"" |
   sudo tee -a /etc/sysconfig/network/config >/dev/null
 sudo netconfig update -f

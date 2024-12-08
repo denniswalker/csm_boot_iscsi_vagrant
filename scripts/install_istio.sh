@@ -5,4 +5,4 @@ source "$SCRIPT_DIR"/lib/lib
 
 curl -L https://istio.io/downloadIstio | sh -
 mv $(find . -name istio*)/bin/istioctl /usr/local/bin/
-istioctl install --set profile=demo -y
+istioctl install --set profile=demo -y --skip-confirmation

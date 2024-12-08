@@ -62,6 +62,9 @@ apiVersion: kubeadm.k8s.io/v1beta4
 kind: ClusterConfiguration
 apiServer:
   timeoutForControlPlane: 4m0s
+networking:
+  dnsDomain: cluster.local
+  serviceSubnet: 192.168.192.0/24
 EOF
 
 if [[ ! $(kubectl get nodes) ]]; then
@@ -114,3 +117,55 @@ kubectl apply -f https://raw.githubusercontent.com/techiescamp/kubeadm-scripts/m
 mkdir -p /opt/local-path-provisioner
 kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.30/deploy/local-path-storage.yaml
 kubectl patch storageclass local-path -p '{"metadata": {"annotations": {"storageclass.kubernetes.io/is-default-class": "true"}}}'
+
+# Install MetalLB
+# https://metallb.universe.tf/installation/
+kubectl get configmap kube-proxy -n kube-system -o yaml |
+  sed -e "s/strictARP: false/strictARP: true/" |
+  kubectl apply -f - -n kube-system
+
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.8/config/manifests/metallb-native.yaml
+
+# Waits for metallb to be ready
+set +x
+NAMESPACE="metallb-system"
+SERVICE="metallb-webhook-service"
+TIMEOUT=600 # Total time to wait (in seconds)
+INTERVAL=5  # Time between each check (in seconds)
+ELAPSED=0
+
+echo "Waiting for $SERVICE to become ready in namespace $NAMESPACE..."
+
+# While loop to wait for the service to be ready
+while true; do
+  # Check if the service is ready to accept connections
+  if nc -z "$(kubectl get service $SERVICE -n $NAMESPACE -o jsonpath='{.spec.clusterIP}')" 443 >/dev/null 2>&1; then
+    echo "$SERVICE is ready. Proceeding with IP address pool creation."
+    break
+  fi
+
+  if [ $ELAPSED -ge $TIMEOUT ]; then
+    echo "Timeout reached ($TIMEOUT seconds). $SERVICE did not become ready."
+    exit 1
+  fi
+
+  echo -n "."
+  sleep $INTERVAL
+  ELAPSED=$((ELAPSED + INTERVAL))
+done
+set -x
+
+# Create the IP address pool
+cat <<EOF | kubectl apply -f -
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: sandbox
+  namespace: metallb-system
+spec:
+  addresses:
+  # On the other hand, the sandbox environment uses private IP space,
+  # which is free and plentiful. We give this address pool a ton of IPs,
+  # so that developers can spin up as many sandboxes as they need.
+  - 10.252.0.1-10.252.0.9
+EOF

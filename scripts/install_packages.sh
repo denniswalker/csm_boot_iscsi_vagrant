@@ -23,4 +23,8 @@ sudo zypper -n in \
   buildah \
   ethtool \
   conntrack-tools \
-  apparmor-parser
+  apparmor-parser \
+  netcat-openbsd
+
+echo "10.252.0.10 api-gw-service-nmn.local" >>/etc/hosts
+echo "10.252.0.10 ncn-w001.nmn" >>/etc/hosts

@@ -6,7 +6,7 @@ Vagrant.configure('2') do |config|
     ncn.vm.box_version = '15.3.10.25'
     ncn.vm.network 'private_network', ip: '10.252.0.10', libvirt__network_name: 'nmn', libvirt__dhcp_enabled: false
     ncn.vm.synced_folder '.', '/vagrant', type: 'nfs', nfs_udp: false, nfs_version: 4
-    ncn.vm.hostname = 'ncn-m001'
+    ncn.vm.hostname = 'ncn-w001'
     ncn.vm.provider :libvirt do |ncnw|
       ncnw.nested = true
       ncnw.cpu_mode = 'host-passthrough'
