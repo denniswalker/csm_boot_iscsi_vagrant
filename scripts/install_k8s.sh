@@ -169,3 +169,5 @@ spec:
   # so that developers can spin up as many sandboxes as they need.
   - 10.252.0.1-10.252.0.9
 EOF
+
+kubectl create namespace services
